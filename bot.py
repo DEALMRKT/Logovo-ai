@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, CallbackQuery, MessageEntity, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, MessageEntity
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -17,8 +17,9 @@ from generators import make_prompt, ai_reply, generate_story
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 OWNER_ID = int(os.getenv("OWNER_ID", "0") or "0")
-AI_API_KEY = os.getenv("HF_TOKEN", "").strip()
-AI_MODEL = os.getenv("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct-1M:fastest").strip()
+AI_API_KEY = os.getenv("AI_API_KEY", "").strip()
+AI_MODEL = os.getenv("AI_MODEL", "stealth/crouton-alpha").strip()
+AI_BASE_URL = os.getenv("AI_BASE_URL", "https://openrouter.ai/api/v1").strip()
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@logovoznani").strip()
 CHANNEL_URL = "https://t.me/" + CHANNEL_USERNAME.lstrip("@").split("/")[0]
 
@@ -38,31 +39,6 @@ EMOJI_PACKS = (
     "emojis_prem_blood",
 )
 CUSTOM_EMOJI_IDS: dict[str, str] = {}
-
-
-BUTTON_EMOJI_KEYS = {
-    "🧠": "eye", "📜": "star", "🌑": "moon", "🧟": "demon", "🔎": "eye",
-    "🏕️": "bat", "⚡": "lightning", "👤": "crown", "🛡️": "demon",
-    "✦": "sparkle", "✓": "star", "📊": "star", "👥": "eye", "👑": "crown",
-    "⬅️": "moon", "➕": "sparkle", "🔄": "lightning", "🧹": "moon",
-}
-
-def add_premium_button(kb, text, *, callback_data=None, url=None):
-    first = text.split(" ", 1)[0]
-    key = BUTTON_EMOJI_KEYS.get(first)
-    emoji_id = CUSTOM_EMOJI_IDS.get(key) if key else None
-    kwargs = {"text": text}
-    if callback_data is not None:
-        kwargs["callback_data"] = callback_data
-    if url is not None:
-        kwargs["url"] = url
-    if emoji_id:
-        kwargs["icon_custom_emoji_id"] = emoji_id
-    try:
-        kb.add(InlineKeyboardButton(**kwargs))
-    except (TypeError, ValueError):
-        kwargs.pop("icon_custom_emoji_id", None)
-        kb.add(InlineKeyboardButton(**kwargs))
 
 
 def custom_emoji(key: str, fallback: str) -> str:
@@ -136,29 +112,29 @@ def main_menu(user_id: int | None = None):
         ("👤 Мой профиль", "profile"),
     ]
     for label, data in buttons:
-        add_premium_button(kb, label, callback_data=data)
+        kb.button(text=label, callback_data=data)
     kb.adjust(2, 2, 2, 2)
     if user_id is not None and is_staff(user_id):
-        add_premium_button(kb, "🛡️ Панель администратора", callback_data="adm:open")
+        kb.button(text="🛡️ Панель администратора", callback_data="adm:open")
         kb.adjust(2, 2, 2, 2, 1)
     return kb.as_markup()
 
 
 def subscription_menu():
     kb = InlineKeyboardBuilder()
-    add_premium_button(kb, "✦ Подписаться на канал", url=CHANNEL_URL)
-    add_premium_button(kb, "✓ Проверить доступ", callback_data="sub:check")
+    kb.button(text="✦ Подписаться на канал", url=CHANNEL_URL)
+    kb.button(text="✓ Проверить доступ", callback_data="sub:check")
     kb.adjust(1)
     return kb.as_markup()
 
 
 def admin_menu(user_id: int):
     kb = InlineKeyboardBuilder()
-    add_premium_button(kb, "📊 Статистика", callback_data="adm:stats")
-    add_premium_button(kb, "👥 Пользователи", callback_data="adm:users")
+    kb.button(text="📊 Статистика", callback_data="adm:stats")
+    kb.button(text="👥 Пользователи", callback_data="adm:users")
     if is_owner(user_id):
-        add_premium_button(kb, "👑 Управление ролями", callback_data="adm:roles")
-    add_premium_button(kb, "⬅️ Главное меню", callback_data="home")
+        kb.button(text="👑 Управление ролями", callback_data="adm:roles")
+    kb.button(text="⬅️ Главное меню", callback_data="home")
     kb.adjust(2, 1, 1)
     return kb.as_markup()
 
@@ -215,7 +191,7 @@ async def answer_with_ai(message: Message, prompt_text: str):
         "Если не уверен — прямо скажи об этом."
     )
     messages = [{"role": "system", "content": system}, *history[-10:], {"role": "user", "content": prompt_text}]
-    answer, error = await ai_reply(messages, AI_API_KEY, AI_MODEL)
+    answer, error = await ai_reply(messages, AI_API_KEY, AI_MODEL, AI_BASE_URL)
     if error:
         await message.answer(error)
         return
@@ -227,15 +203,15 @@ async def answer_with_ai(message: Message, prompt_text: str):
 async def send_story(message: Message, genre: str):
     labels = {"zombie": "ЗОМБИ-АПОКАЛИПСИС", "blackout": "БЛЭКАУТ", "detective": "ДЕТЕКТИВ", "survival": "ВЫЖИВАНИЕ"}
     await message.answer("✦ <b>Создаю уникальный сюжет…</b>")
-    story, error = await generate_story(genre, AI_API_KEY, AI_MODEL)
+    story, error = await generate_story(genre, AI_API_KEY, AI_MODEL, AI_BASE_URL)
     if error:
         await message.answer(error)
         return
     last_stories[message.from_user.id] = (genre, story)
     kb = InlineKeyboardBuilder()
-    add_premium_button(kb, "➕ Продолжить историю", callback_data=f"story:continue:{genre}")
-    add_premium_button(kb, "🔄 Новый сюжет", callback_data=f"genre:{genre}")
-    add_premium_button(kb, "⬅️ В меню", callback_data="home")
+    kb.button(text="➕ Продолжить историю", callback_data=f"story:continue:{genre}")
+    kb.button(text="🔄 Новый сюжет", callback_data=f"genre:{genre}")
+    kb.button(text="⬅️ В меню", callback_data="home")
     kb.adjust(1)
     heading = f"{custom_emoji('moon', '🌑')} <b>{labels.get(genre, 'НОВАЯ ИСТОРИЯ')}</b> {custom_emoji('sparkle', '✨')}\n━━━━━━━━━━━━━━━━━━\n\n"
     await message.answer(heading + html.escape(story[:3800]), reply_markup=kb.as_markup())
@@ -355,14 +331,14 @@ async def continue_story(call: CallbackQuery):
         return
     await call.answer()
     await call.message.answer("✦ <b>Продолжаю сюжет…</b>")
-    continuation, error = await generate_story(genre, AI_API_KEY, AI_MODEL, previous[1])
+    continuation, error = await generate_story(genre, AI_API_KEY, AI_MODEL, AI_BASE_URL, previous[1])
     if error:
         await call.message.answer(error)
         return
     last_stories[call.from_user.id] = (genre, previous[1] + "\n\n" + continuation)
     kb = InlineKeyboardBuilder()
-    add_premium_button(kb, "➕ Продолжить ещё", callback_data=f"story:continue:{genre}")
-    add_premium_button(kb, "🔄 Новый сюжет", callback_data=f"genre:{genre}")
+    kb.button(text="➕ Продолжить ещё", callback_data=f"story:continue:{genre}")
+    kb.button(text="🔄 Новый сюжет", callback_data=f"genre:{genre}")
     kb.adjust(1)
     await call.message.answer(html.escape(continuation[:3800]), reply_markup=kb.as_markup())
 
@@ -377,8 +353,8 @@ async def prompt(call: CallbackQuery):
 async def ai_info(call: CallbackQuery):
     awaiting_ai.add(call.from_user.id)
     kb = InlineKeyboardBuilder()
-    add_premium_button(kb, "🧹 Очистить память", callback_data="ai:clear")
-    add_premium_button(kb, "⬅️ Главное меню", callback_data="home")
+    kb.button(text="🧹 Очистить память", callback_data="ai:clear")
+    kb.button(text="⬅️ Главное меню", callback_data="home")
     kb.adjust(1)
     await call.message.answer(
         f"{custom_emoji('sparkle', '✨')} <b>ИИ-ЧАТ АКТИВЕН</b> {custom_emoji('eye', '👁️')}\n━━━━━━━━━━━━━━━━━━\n"
@@ -413,7 +389,7 @@ async def profile(call: CallbackQuery):
         f"{custom_emoji('crown', '👑')} <b>ТВОЙ ПРОФИЛЬ</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"Имя: {html.escape(call.from_user.full_name)}\nНик: {username}\n"
         f"ID: <code>{call.from_user.id}</code>\nРоль: {label}\n\n"
-        f"ИИ-модель: <code>{html.escape(AI_MODEL)}</code>\nПровайдер: <code>Hugging Face</code>"
+        f"ИИ-модель: <code>{html.escape(AI_MODEL)}</code>"
     )
     await call.answer()
 

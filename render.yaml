@@ -13,10 +13,12 @@ services:
         sync: false
       - key: WEBHOOK_SECRET
         sync: false
-      - key: HF_TOKEN
+      - key: AI_API_KEY
         sync: false
-      - key: HF_MODEL
-        value: Qwen/Qwen2.5-7B-Instruct-1M:fastest
+      - key: AI_MODEL
+        value: stealth/crouton-alpha
+      - key: AI_BASE_URL
+        value: https://openrouter.ai/api/v1
       - key: CHANNEL_USERNAME
         value: '@logovoznani'
       - key: RENDER_EXTERNAL_URL

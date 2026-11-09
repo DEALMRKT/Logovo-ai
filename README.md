@@ -1,32 +1,50 @@
-# Логово Знаний ИИ
+# Логово Знаний ИИ — обновлённый Telegram-бот
 
-Telegram-бот на aiogram 3 с webhook для Render.
-
-## Возможности
-- ИИ-чат с короткой памятью диалога до перезапуска процесса.
-- Оригинальные интерактивные истории: блэкаут, зомби-апокалипсис, детектив, выживание.
-- Продолжение истории и новый сюжет.
+## Что входит
+- ИИ-чат через OpenRouter с короткой памятью диалога до перезапуска процесса.
+- Уникальные истории через ИИ: блэкаут, зомби-апокалипсис, детектив, выживание.
+- Продолжение последней истории и создание нового сюжета.
+- Автоматическая попытка загрузить декоративные Premium Emoji из заданных публичных наборов; если Telegram не отдаёт набор или подходящий ID, используются Unicode-эмодзи.
+- Команда `/emojiid` и автоматический вывод `custom_emoji_id`, когда пользователь отправляет Premium Emoji боту.
 - Обязательная подписка на `@logovoznani`.
 - Профиль, роли, статистика и админ-панель.
-- Загрузка Premium Emoji из указанных наборов и использование custom emoji как иконок inline-кнопок. Для этого владелец бота должен иметь Telegram Premium; при недоступности ID кнопки остаются с обычными emoji.
-- `/emojiid` показывает custom_emoji_id у сообщения, на которое ответили командой.
+- FastAPI webhook для Render и `/health`.
 
 ## Render Environment
-- `BOT_TOKEN` — токен BotFather.
-- `OWNER_ID` — числовой Telegram ID владельца.
-- `WEBHOOK_SECRET` — секрет вебхука (1–256 символов, буквы/цифры/`_`/`-`).
-- `HF_TOKEN` — токен Hugging Face с разрешением Inference Providers.
-- `HF_MODEL` — по умолчанию `Qwen/Qwen2.5-7B-Instruct-1M:fastest`.
+Проверь следующие переменные в Render → Environment:
+
+- `BOT_TOKEN` — токен из BotFather.
+- `OWNER_ID` — твой числовой Telegram ID.
+- `WEBHOOK_SECRET` — длинная случайная строка из латинских букв, цифр, `_` и `-` (1–256 символов).
+- `AI_API_KEY` — OpenRouter API key. Не отправляй его никому и не добавляй в GitHub.
+- `AI_MODEL` — `stealth/crouton-alpha` (если модель доступна твоему OpenRouter-аккаунту).
+- `AI_BASE_URL` — `https://openrouter.ai/api/v1`.
 - `CHANNEL_USERNAME` — `@logovoznani`.
 - `RENDER_EXTERNAL_URL` — `https://logovo-ai.onrender.com`.
 
-ИИ теперь вызывается через официальный OpenAI-совместимый endpoint Hugging Face: `https://router.huggingface.co/v1/chat/completions`. OpenRouter-переменные больше не используются. Доступность конкретной модели и бесплатный лимит зависят от Inference Provider и аккаунта; проверь Usage/Billing в Hugging Face.
+Не публикуй значения `BOT_TOKEN`, `AI_API_KEY` и `WEBHOOK_SECRET`.
 
 ## Развёртывание
-1. Замени файлы в GitHub-репозитории содержимым архива.
-2. В Render → Environment добавь `HF_TOKEN` и удали старые `AI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`.
-3. Убедись, что Start Command: `uvicorn app:app --host 0.0.0.0 --port $PORT`.
-4. Deploy latest commit.
-5. Проверь `/health`.
+1. Загрузи содержимое архива в GitHub-репозиторий, заменив старые файлы.
+2. В Render открой существующий Web Service и проверь Environment.
+3. Убедись, что команда запуска: `uvicorn app:app --host 0.0.0.0 --port $PORT`.
+4. Нажми Manual Deploy → Deploy latest commit.
+5. Проверь `https://logovo-ai.onrender.com/health` — ожидается `{"status":"ok"}`.
+6. Убедись, что бот является администратором канала `@logovoznani` с правом просмотра участников.
 
-Не публикуй `BOT_TOKEN`, `HF_TOKEN` и `WEBHOOK_SECRET`.
+## Команды бота
+- `/start` — главное меню.
+- `/ask текст` — задать вопрос ИИ.
+- `/clear` — очистить память ИИ-чата.
+- `/id` — показать свой Telegram ID.
+- `/emojiid` — получить ID Premium Emoji из сообщения, на которое ответили этой командой.
+- `/admin` — админ-панель.
+- `/deputy TELEGRAM_ID` — назначить заместителя (владелец).
+- `/grantadmin TELEGRAM_ID` — назначить администратора (владелец).
+- `/removeadmin TELEGRAM_ID` — снять роль (владелец).
+
+## Важно про Premium Emoji
+Кнопки Telegram не поддерживают произвольные custom-emoji entities в тексте кнопок. Поэтому Premium Emoji используются в сообщениях. Загрузка наборов выполняется автоматически при запуске, но доступность зависит от того, отдаёт ли Telegram эти sticker sets боту. Если набор недоступен, бот безопасно показывает обычные эмодзи вместо них.
+
+## Ограничения бесплатного Render
+Бесплатный сервис может засыпать после периода бездействия. Память ИИ-диалога хранится в RAM и сбрасывается при перезапуске. SQLite на файловой системе бесплатного сервиса не гарантирует сохранность данных при redeploy/restart; для постоянной базы понадобится постоянный диск или внешняя БД.

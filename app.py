@@ -27,7 +27,9 @@ async def lifespan(app: FastAPI):
     await init_db(OWNER_ID)
     if RENDER_EXTERNAL_URL:
         await bot.set_webhook(
-            url=f"https://{RENDER_EXTERNAL_URL}{WEBHOOK_PATH}",
+            url=f"{RENDER_EXTERNAL_URL.rstrip('/')}{WEBHOOK_PATH}"
+    if RENDER_EXTERNAL_URL.startswith("https://")
+    else f"https://{RENDER_EXTERNAL_URL.strip('/')}{WEBHOOK_PATH}",
             secret_token=WEBHOOK_SECRET,
             drop_pending_updates=False
         )
